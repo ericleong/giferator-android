@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Giferator</string>
+    <string name="add_image">Add Image</string>
+    <string name="choose_image">Choose Image</string>
+    <string name="no_image">No Image</string>
+    <string name="clear">Clear</string>
+    <string name="action_create">Save</string>
+</resources>
