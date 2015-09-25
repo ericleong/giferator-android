@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -8,12 +8,9 @@
 
     <FrameLayout
         android:id="@+id/canvas"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentTop="true"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentRight="true"
-        android:layout_above="@+id/blends"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         tools:ignore="RtlHardcoded">
 
         <TextView
@@ -32,60 +29,45 @@
 
     </FrameLayout>
 
-    <Space
-        android:id="@+id/center_space"
-        android:layout_width="16dp"
-        android:layout_height="wrap_content"
-        android:layout_centerHorizontal="true"
-        android:layout_below="@id/canvas"
-        android:layout_alignParentBottom="true" />
-
-    <Spinner
-        android:id="@+id/blends"
-        android:paddingTop="@dimen/activity_vertical_margin"
-        android:paddingBottom="@dimen/activity_vertical_margin"
-        android:layout_marginLeft="@dimen/activity_horizontal_margin"
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_above="@+id/add"
-        android:layout_toLeftOf="@id/center_space"
-        android:layout_alignParentLeft="true"
-        tools:ignore="RtlHardcoded" />
+        android:layout_height="wrap_content">
 
-    <Spinner
-        android:id="@+id/ratios"
-        android:paddingTop="@dimen/activity_vertical_margin"
-        android:paddingBottom="@dimen/activity_vertical_margin"
-        android:layout_marginRight="@dimen/activity_horizontal_margin"
+        <ImageView
+            android:id="@+id/layers"
+            android:src="@drawable/ic_layers_black_24dp"
+            android:scaleType="center"
+            android:tint="@color/gray_700"
+            android:background="@drawable/editor_button"
+            android:layout_weight="1"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/editor_bar_height" />
+
+        <ImageView
+            android:id="@+id/blends"
+            android:src="@drawable/ic_color_lens_black_24dp"
+            android:scaleType="center"
+            android:tint="@color/gray_700"
+            android:background="@drawable/editor_button"
+            android:layout_weight="1"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/editor_bar_height" />
+
+        <ImageView
+            android:id="@+id/ratios"
+            android:src="@drawable/ic_aspect_ratio_black_24dp"
+            android:scaleType="center"
+            android:tint="@color/gray_700"
+            android:background="@drawable/editor_button"
+            android:layout_weight="1"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/editor_bar_height" />
+
+    </LinearLayout>
+
+    <android.support.v4.view.ViewPager
+        android:id="@+id/pager"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_above="@+id/clear"
-        android:layout_toRightOf="@id/center_space"
-        android:layout_alignParentRight="true"
-        tools:ignore="RtlHardcoded" />
+        android:layout_height="@dimen/pager_height" />
 
-    <Button
-        android:id="@+id/add"
-        android:text="@string/add_image"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginLeft="@dimen/activity_horizontal_margin"
-        android:layout_marginBottom="@dimen/activity_vertical_margin"
-        android:layout_toLeftOf="@id/center_space"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentBottom="true"
-        tools:ignore="RtlHardcoded" />
-
-    <Button
-        android:id="@+id/clear"
-        android:text="@string/clear"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginRight="@dimen/activity_horizontal_margin"
-        android:layout_marginBottom="@dimen/activity_vertical_margin"
-        android:layout_toRightOf="@id/center_space"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentBottom="true"
-        tools:ignore="RtlHardcoded" />
-
-</RelativeLayout>
+</LinearLayout>

@@ -14,17 +14,22 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.v4.view.PagerAdapter;
+import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.util.Pair;
+import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.SurfaceHolder;
 import android.view.View;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.Spinner;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
+import android.widget.HorizontalScrollView;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.resource.drawable.GlideDrawable;
@@ -35,7 +40,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
-public class EditorActivity extends AppCompatActivity implements Drawable.Callback, SurfaceHolder.Callback {
+public class EditorActivity extends AppCompatActivity implements Drawable.Callback,
+        SurfaceHolder.Callback {
 
     private static final String TAG = EditorActivity.class.getSimpleName();
 
@@ -80,16 +86,17 @@ public class EditorActivity extends AppCompatActivity implements Drawable.Callba
     private RatioSurfaceView mSurface;
     @Nullable
     private View mEmpty;
-    @Nullable
-    private Spinner mBlends;
-    @Nullable
-    private Spinner mRatios;
     @NonNull
     private Handler mHandler = new Handler();
     @NonNull
     private Paint mPaint = new Paint();
     @Nullable
     private Layer mLayer;
+
+    @Nullable
+    private ViewPager mViewPager;
+    @Nullable
+    private EditorPagerAdapter mEditorAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -99,93 +106,42 @@ public class EditorActivity extends AppCompatActivity implements Drawable.Callba
         mSurface.setAspectRatio(1.0f);
         mSurface.getHolder().addCallback(this);
 
-        final Button add = (Button) findViewById(R.id.add);
-        add.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
-                    Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-                    intent.setType(TYPE_IMAGE);
-                    Intent chooserIntent = Intent.createChooser(intent,
-                            getResources().getString(R.string.choose_image));
-                    startActivityForResult(chooserIntent, RESULT_GALLERY);
-                } else {
-                    Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-                    intent.addCategory(Intent.CATEGORY_OPENABLE);
-                    intent.setType(TYPE_IMAGE);
-                    startActivityForResult(intent, RESULT_GALLERY_KITKAT);
-                }
-            }
-        });
+        mEmpty = findViewById(R.id.no_image);
 
-        mEmpty = findViewById(R.id.no_image);;
+        mViewPager = (ViewPager) findViewById(R.id.pager);
 
-        final Button clear = (Button) findViewById(R.id.clear);
-        clear.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                for (GlideDrawable drawable : mDrawables) {
-                    drawable.stop();
-                }
-                mSurface.setVisibility(View.INVISIBLE);
-
-                for (Drawable drawable : mDrawables) {
-                    if (drawable instanceof GifDrawable) {
-                        ((GifDrawable) drawable).recycle();
-                    }
-                }
-
-                mDrawables.clear();
-
-                if (mEmpty != null) {
-                    mEmpty.setVisibility(View.VISIBLE);
-                }
-            }
-        });
-
-        // List of blend modes
-        mBlends = (Spinner) findViewById(R.id.blends);
-        if (mBlends != null) {
-            final ArrayAdapter<PorterDuff.Mode> blendAdapter =
-                    new ArrayAdapter<>(this, android.R.layout.simple_spinner_item,
-                            PorterDuff.Mode.values());
-            blendAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            mBlends.setAdapter(blendAdapter);
-            mBlends.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                    mPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.values()[position]));
-                    render();
-                }
-
-                @Override
-                public void onNothingSelected(AdapterView<?> parent) {
-
-                }
-            });
+        if (mViewPager != null) {
+            mEditorAdapter = new EditorPagerAdapter();
+            mViewPager.setOffscreenPageLimit(2);
+            mViewPager.setAdapter(mEditorAdapter);
         }
 
-        // List of ratios
-        mRatios = (Spinner) findViewById(R.id.ratios);
-        if (mRatios != null) {
-            final ArrayAdapter<Ratio> ratioAdapter =
-                    new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, Ratio.values());
-            ratioAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            mRatios.setAdapter(ratioAdapter);
-            mRatios.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                    if (mSurface != null) {
-                        mSurface.setAspectRatio(Ratio.values()[position].getRatio());
-                    }
+        final View.OnClickListener editors = new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                switch (v.getId()) {
+                    default:
+                    case R.id.layers:
+                        mViewPager.setCurrentItem(0, true);
+                        break;
+                    case R.id.blends:
+                        mViewPager.setCurrentItem(1, true);
+                        break;
+                    case R.id.ratios:
+                        mViewPager.setCurrentItem(2, true);
+                        break;
                 }
+            }
+        };
 
-                @Override
-                public void onNothingSelected(AdapterView<?> parent) {
+        final ImageView layers = (ImageView) findViewById(R.id.layers);
+        layers.setOnClickListener(editors);
 
-                }
-            });
-        }
+        final ImageView blends = (ImageView) findViewById(R.id.blends);
+        blends.setOnClickListener(editors);
+
+        final ImageView ratios = (ImageView) findViewById(R.id.ratios);
+        ratios.setOnClickListener(editors);
 
         if (savedInstanceState != null) {
             final String[] images = savedInstanceState.getStringArray(INSTANCE_URIS);
@@ -197,13 +153,13 @@ public class EditorActivity extends AppCompatActivity implements Drawable.Callba
                 }
             }
 
-            mBlends.setSelection(savedInstanceState.getInt(INSTANCE_BLEND_MODE,
-                    PorterDuff.Mode.SRC_OVER.ordinal()));
-            mRatios.setSelection(savedInstanceState.getInt(INSTANCE_RATIO,
-                    Ratio.ONE_ONE.ordinal()));
+//            mBlends.setSelection(savedInstanceState.getInt(INSTANCE_BLEND_MODE,
+//                    PorterDuff.Mode.SRC_OVER.ordinal()));
+//            mRatios.setSelection(savedInstanceState.getInt(INSTANCE_RATIO,
+//                    Ratio.ONE_ONE.ordinal()));
         } else {
-            mBlends.setSelection(PorterDuff.Mode.SRC_OVER.ordinal());
-            mRatios.setSelection(Ratio.ONE_ONE.ordinal());
+//            mBlends.setSelection(PorterDuff.Mode.SRC_OVER.ordinal());
+//            mRatios.setSelection(Ratio.ONE_ONE.ordinal());
 
             final Intent intent = getIntent();
 
@@ -236,12 +192,12 @@ public class EditorActivity extends AppCompatActivity implements Drawable.Callba
             images[i] = mImageUris.get(i).toString();
         }
         outState.putStringArray(INSTANCE_URIS, images);
-        if (mBlends != null) {
-            outState.putInt(INSTANCE_BLEND_MODE, mBlends.getSelectedItemPosition());
-        }
-        if (mRatios != null) {
-            outState.putInt(INSTANCE_RATIO, mRatios.getSelectedItemPosition());
-        }
+//        if (mBlends != null) {
+//            outState.putInt(INSTANCE_BLEND_MODE, mBlends.getSelectedItemPosition());
+//        }
+//        if (mRatios != null) {
+//            outState.putInt(INSTANCE_RATIO, mRatios.getSelectedItemPosition());
+//        }
 
         super.onSaveInstanceState(outState);
     }
@@ -406,6 +362,9 @@ public class EditorActivity extends AppCompatActivity implements Drawable.Callba
 
                 mDrawables.add(glideDrawable);
                 mImageUris.add(pair.first);
+                if (mEditorAdapter != null) {
+                    mEditorAdapter.add(pair.first);
+                }
 
                 if (glideDrawable.isAnimated()) {
                     glideDrawable.setCallback(EditorActivity.this);
@@ -413,6 +372,200 @@ public class EditorActivity extends AppCompatActivity implements Drawable.Callba
                 } else {
                     render();
                 }
+            }
+        }
+    }
+
+    private class EditorPagerAdapter extends PagerAdapter {
+
+        private LinearLayout mLayers;
+        private LinearLayout mBlends;
+
+        @Override
+        public Object instantiateItem(ViewGroup container, final int position) {
+            final View view;
+
+            switch (position) {
+                case 0:
+                    view = getLayoutInflater().inflate(R.layout.page_layers, container, false);
+                    mLayers = (LinearLayout) view.findViewById(R.id.list_layers);
+
+                    final ImageView add = (ImageView) view.findViewById(R.id.add);
+                    add.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
+                                Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+                                intent.setType(TYPE_IMAGE);
+                                Intent chooserIntent = Intent.createChooser(intent,
+                                        getResources().getString(R.string.choose_image));
+                                startActivityForResult(chooserIntent, RESULT_GALLERY);
+                            } else {
+                                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                                intent.addCategory(Intent.CATEGORY_OPENABLE);
+                                intent.setType(TYPE_IMAGE);
+                                startActivityForResult(intent, RESULT_GALLERY_KITKAT);
+                            }
+                        }
+                    });
+
+                    final ImageView clear = (ImageView) view.findViewById(R.id.clear);
+                    clear.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            for (GlideDrawable drawable : mDrawables) {
+                                drawable.stop();
+                            }
+                            if (mSurface != null) {
+                                mSurface.setVisibility(View.INVISIBLE);
+                            }
+
+                            for (Drawable drawable : mDrawables) {
+                                if (drawable instanceof GifDrawable) {
+                                    ((GifDrawable) drawable).recycle();
+                                }
+                            }
+
+                            mDrawables.clear();
+                            mImageUris.clear();
+                            mLayers.removeAllViews();
+
+                            if (mEmpty != null) {
+                                mEmpty.setVisibility(View.VISIBLE);
+                            }
+                        }
+                    });
+
+                    break;
+
+                case 1: {
+                    final HorizontalScrollView scrollView =
+                            new HorizontalScrollView(EditorActivity.this);
+                    scrollView.setLayoutParams(new ViewGroup.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT));
+                    view = scrollView;
+
+                    mBlends = new LinearLayout(EditorActivity.this);
+                    mBlends.setLayoutParams(new FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.MATCH_PARENT,
+                            FrameLayout.LayoutParams.MATCH_PARENT));
+
+                    scrollView.addView(mBlends);
+
+                    final int size = getResources().getDimensionPixelSize(R.dimen.item_blend_width);
+
+                    for (final PorterDuff.Mode mode : PorterDuff.Mode.values()) {
+                        final TextView textView = new TextView(EditorActivity.this);
+                        textView.setLayoutParams(new LinearLayout.LayoutParams(
+                                size,
+                                LinearLayout.LayoutParams.MATCH_PARENT
+                        ));
+                        textView.setGravity(Gravity.CENTER);
+                        textView.setText(mode.toString());
+                        textView.setBackground(getResources().getDrawable(R.drawable.editor_button));
+                        textView.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View v) {
+                                if (mSurface != null) {
+                                    mPaint.setXfermode(new PorterDuffXfermode(mode));
+                                    render();
+                                }
+                            }
+                        });
+
+                        mBlends.addView(textView);
+                    }
+
+                    break;
+                }
+                case 2:
+                    final HorizontalScrollView scrollView =
+                            new HorizontalScrollView(EditorActivity.this);
+                    scrollView.setLayoutParams(new ViewGroup.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT));
+                    view = scrollView;
+
+                    final LinearLayout linearLayout = new LinearLayout(EditorActivity.this);
+                    linearLayout.setLayoutParams(new FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.MATCH_PARENT,
+                            FrameLayout.LayoutParams.MATCH_PARENT));
+
+                    scrollView.addView(linearLayout);
+
+                    final int size = getResources().getDimensionPixelSize(R.dimen.item_ratio_width);
+
+                    for (final Ratio ratio : Ratio.values()) {
+                        final TextView textView = new TextView(EditorActivity.this);
+                        textView.setLayoutParams(new LinearLayout.LayoutParams(size,
+                                LinearLayout.LayoutParams.MATCH_PARENT));
+                        textView.setGravity(Gravity.CENTER);
+                        textView.setTextSize(20);
+                        textView.setText(ratio.toString());
+                        textView.setBackground(getResources().getDrawable(R.drawable.editor_button));
+
+                        textView.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View v) {
+                                if (mSurface != null) {
+                                    mSurface.setAspectRatio(ratio.getRatio());
+                                }
+                            }
+                        });
+
+                        linearLayout.addView(textView);
+                    }
+
+                    break;
+                default:
+                    view = null;
+                    break;
+            }
+
+            if (view != null) {
+                container.addView(view, position);
+            }
+            return view;
+        }
+
+        @Override
+        public void destroyItem(ViewGroup container, int position, Object object) {
+            // no-op
+        }
+
+        @Override
+        public int getCount() {
+            return 3;
+        }
+
+        @Override
+        public boolean isViewFromObject(View view, Object object) {
+            return view == object;
+        }
+
+        public void add(final Uri uri) {
+            if (mLayers != null) {
+                final ImageView imageView = new ImageView(EditorActivity.this);
+                final int size = getResources().getDimensionPixelSize(R.dimen.pager_height);
+                imageView.setLayoutParams(new LinearLayout.LayoutParams(size, size));
+                imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                mLayers.addView(imageView);
+
+                Glide.with(EditorActivity.this).load(uri).asBitmap().into(imageView);
+            }
+        }
+
+        public void updateBlends() {
+            mBlends.removeAllViews();
+
+            final int size = getResources().getDimensionPixelSize(R.dimen.pager_height);
+
+            for (PorterDuff.Mode mode : PorterDuff.Mode.values()) {
+                final ImageView imageView = new ImageView(EditorActivity.this);
+                imageView.setLayoutParams(new LinearLayout.LayoutParams(size, size));
+
+
             }
         }
     }
