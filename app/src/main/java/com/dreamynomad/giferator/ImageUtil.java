@@ -47,7 +47,7 @@ public class ImageUtil {
     }
 
     public static void cover(@NonNull final Bitmap bitmap, @NonNull final Canvas canvas,
-                              @NonNull final Rect rect) {
+                             @NonNull final Rect rect) {
         if (canvas.getWidth() > 0 && canvas.getHeight() > 0 && bitmap.getWidth() > 0 &&
                 bitmap.getHeight() > 0) {
             final double surfaceRatio = (double) canvas.getWidth() / canvas.getHeight();
