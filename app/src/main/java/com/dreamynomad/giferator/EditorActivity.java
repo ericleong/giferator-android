@@ -16,6 +16,7 @@ import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.view.PagerAdapter;
@@ -91,7 +92,7 @@ public class EditorActivity extends AppCompatActivity implements Drawable.Callba
     @Nullable
     private View mEmpty;
     @NonNull
-    private Handler mHandler = new Handler();
+    private Handler mHandler;
     @NonNull
     private Paint mPaint = new Paint();
     @Nullable
@@ -109,6 +110,10 @@ public class EditorActivity extends AppCompatActivity implements Drawable.Callba
         mSurface = (RatioSurfaceView) findViewById(R.id.surface);
         mSurface.setAspectRatio(1.0f);
         mSurface.getHolder().addCallback(this);
+
+        final HandlerThread thread = new HandlerThread("Gifs");
+        thread.start();
+        mHandler = new Handler(thread.getLooper());
 
         mEmpty = findViewById(R.id.no_image);
 
@@ -259,6 +264,15 @@ public class EditorActivity extends AppCompatActivity implements Drawable.Callba
     }
 
     private void render() {
+        mHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                renderInternal();
+            }
+        });
+    }
+
+    private void renderInternal() {
         if (mSurface != null && mSurface.getHolder() != null) {
             Canvas canvas = null;
             final SurfaceHolder holder = mSurface.getHolder();
