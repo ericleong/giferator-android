@@ -455,6 +455,7 @@ public class EditorActivity extends AppCompatActivity implements Drawable.Callba
                             mDrawables.clear();
                             mImageUris.clear();
                             mLayers.removeAllViews();
+                            updateBlends();
 
                             if (mEmpty != null) {
                                 mEmpty.setVisibility(View.VISIBLE);
