@@ -6,7 +6,7 @@
 
     <ImageView
         android:id="@+id/add"
-        android:src="@drawable/ic_add_black_48dp"
+        android:src="@drawable/ic_add_black_36dp"
         android:scaleType="center"
         android:tint="@color/colorPrimary"
         android:background="@drawable/editor_button"
@@ -28,7 +28,7 @@
 
     <ImageView
         android:id="@+id/clear"
-        android:src="@drawable/ic_clear_black_48dp"
+        android:src="@drawable/ic_clear_black_36dp"
         android:scaleType="center"
         android:tint="@color/gray_700"
         android:background="@drawable/editor_button"

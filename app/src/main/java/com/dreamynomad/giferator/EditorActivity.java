@@ -1,5 +1,6 @@
 package com.dreamynomad.giferator;
 
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -41,12 +42,13 @@ import com.bumptech.glide.load.resource.drawable.GlideDrawable;
 import com.bumptech.glide.load.resource.gif.GifDrawable;
 import com.bumptech.glide.request.target.Target;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 public class EditorActivity extends AppCompatActivity implements Drawable.Callback,
-        SurfaceHolder.Callback {
+        SurfaceHolder.Callback, BlendListener {
 
     private static final String TAG = EditorActivity.class.getSimpleName();
 
@@ -102,6 +104,12 @@ public class EditorActivity extends AppCompatActivity implements Drawable.Callba
     private ViewPager mViewPager;
     @Nullable
     private EditorPagerAdapter mEditorAdapter;
+
+    @Override
+    public void setBlendMode(final PorterDuff.Mode mode) {
+        mPaint.setXfermode(new PorterDuffXfermode(mode));
+        render();
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -561,123 +569,8 @@ public class EditorActivity extends AppCompatActivity implements Drawable.Callba
             final Uri[] uris = new Uri[mImageUris.size()];
             mImageUris.toArray(uris);
 
-            new AsyncTask<Uri, Void, List<Bitmap>>() {
-
-                @Override
-                protected List<Bitmap> doInBackground(Uri... params) {
-                    List<Bitmap> bitmaps = new ArrayList<>(params.length);
-
-                    try {
-                        for (Uri uri : params) {
-                            final Bitmap bitmap =
-                                    Glide.with(EditorActivity.this).load(uri).asBitmap()
-                                            .into(size, size).get();
-
-                            if (bitmap != null) {
-                                bitmaps.add(bitmap);
-                            }
-                        }
-                    } catch (InterruptedException | ExecutionException e) {
-                        Log.e(TAG, "Could not download images.", e);
-                    }
-
-                    if (bitmaps.size() > 0) {
-                        final Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
-                        final Canvas canvas = new Canvas(bitmap);
-                        final Rect rect = new Rect();
-                        final Paint paint = new Paint();
-                        final Xfermode base = paint.getXfermode();
-
-                        final List<Bitmap> modes = new ArrayList<>(PorterDuff.Mode.values().length);
-
-                        for (PorterDuff.Mode mode : PorterDuff.Mode.values()) {
-
-                            final Xfermode test = new PorterDuffXfermode(mode);
-
-                            for (int i = 0; i < bitmaps.size(); i++) {
-                                ImageUtil.cover(bitmaps.get(i), canvas, rect);
-                                if (i == 0) {
-                                    paint.setXfermode(base);
-                                } else {
-                                    paint.setXfermode(test);
-                                }
-                                canvas.drawBitmap(bitmaps.get(i), null, rect, paint);
-                            }
-
-                            modes.add(bitmap.copy(bitmap.getConfig(), false));
-                        }
-
-                        return modes;
-                    } else {
-                        return null;
-                    }
-                }
-
-                @Override
-                protected void onPostExecute(List<Bitmap> bitmaps) {
-                    mBlends.removeAllViews();
-
-                    if (bitmaps == null) {
-                        final int textSize =
-                                getResources().getDimensionPixelSize(R.dimen.item_blend_width);
-
-                        for (final PorterDuff.Mode mode : PorterDuff.Mode.values()) {
-                            final TextView textView = new TextView(EditorActivity.this);
-                            textView.setLayoutParams(new LinearLayout.LayoutParams(
-                                    textSize,
-                                    LinearLayout.LayoutParams.MATCH_PARENT
-                            ));
-                            textView.setGravity(Gravity.CENTER);
-                            textView.setText(mode.toString());
-                            textView.setBackground(getResources().getDrawable(R.drawable.editor_button));
-                            textView.setOnClickListener(new View.OnClickListener() {
-                                @Override
-                                public void onClick(View v) {
-                                    if (mSurface != null) {
-                                        mPaint.setXfermode(new PorterDuffXfermode(mode));
-                                        render();
-                                    }
-                                }
-                            });
-
-                            mBlends.addView(textView);
-                        }
-                    } else {
-
-                        final int textSize =
-                                getResources().getDimensionPixelSize(R.dimen.item_blend_width);
-
-                        for (int i = 0;
-                             i < bitmaps.size() && i < PorterDuff.Mode.values().length; i++) {
-                            final TextView textView = new TextView(EditorActivity.this);
-                            textView.setLayoutParams(new LinearLayout.LayoutParams(
-                                    textSize,
-                                    LinearLayout.LayoutParams.MATCH_PARENT
-                            ));
-                            textView.setGravity(Gravity.CENTER);
-                            final PorterDuff.Mode mode = PorterDuff.Mode.values()[i];
-                            textView.setText(mode.toString());
-                            textView.setBackground(getResources().getDrawable(R.drawable.editor_button));
-                            textView.setOnClickListener(new View.OnClickListener() {
-                                @Override
-                                public void onClick(View v) {
-                                    if (mSurface != null) {
-                                        mPaint.setXfermode(new PorterDuffXfermode(mode));
-                                        render();
-                                    }
-                                }
-                            });
-                            final BitmapDrawable drawable =
-                                    new BitmapDrawable(getResources(), bitmaps.get(i));
-                            drawable.setBounds(0, 0,
-                                    bitmaps.get(i).getWidth(), bitmaps.get(i).getHeight());
-                            textView.setCompoundDrawables(null, drawable, null, null);
-
-                            mBlends.addView(textView);
-                        }
-                    }
-                }
-            }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, uris);
+            new BlendTask(EditorActivity.this, size, mBlends, EditorActivity.this)
+                    .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, uris);
         }
     }
 }

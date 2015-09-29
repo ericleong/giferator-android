@@ -2,6 +2,7 @@ package com.dreamynomad.giferator;
 
 import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -37,7 +38,7 @@ import java.util.concurrent.ExecutionException;
 /**
  * Created by Eric on 9/23/2015.
  */
-public class SaveTask extends AsyncTask<Uri, Float, File> {
+public class SaveTask extends AsyncTask<Uri, Float, File> implements DialogInterface.OnCancelListener {
 
     private static final String TAG = SaveTask.class.getSimpleName();
 
@@ -66,6 +67,7 @@ public class SaveTask extends AsyncTask<Uri, Float, File> {
         mProgressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
         mProgressDialog.setMax(PROGRESS_MAX);
         mProgressDialog.show();
+        mProgressDialog.setOnCancelListener(this);
     }
 
     @Override
@@ -182,9 +184,11 @@ public class SaveTask extends AsyncTask<Uri, Float, File> {
     @Override
     protected void onPostExecute(File file) {
         if (file != null) {
-            Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
-            mediaScanIntent.setData(Uri.fromFile(file));
+            final Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
+            final Uri uri = Uri.fromFile(file);
+            mediaScanIntent.setData(uri);
             mContext.sendBroadcast(mediaScanIntent);
+            Toast.makeText(mContext, "Saved to: " + uri, Toast.LENGTH_SHORT).show();
         } else {
             Toast.makeText(mContext, "Save Failed", Toast.LENGTH_SHORT).show();
         }
@@ -233,5 +237,10 @@ public class SaveTask extends AsyncTask<Uri, Float, File> {
         }
 
         return minDelay;
+    }
+
+    @Override
+    public void onCancel(DialogInterface dialog) {
+        cancel(true);
     }
 }
