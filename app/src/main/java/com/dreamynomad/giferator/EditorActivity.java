@@ -1,16 +1,11 @@
 package com.dreamynomad.giferator;
 
-import android.content.Context;
 import android.content.Intent;
-import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
-import android.graphics.Rect;
-import android.graphics.Xfermode;
-import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -20,29 +15,21 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
-import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.util.Pair;
-import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.SurfaceHolder;
 import android.view.View;
-import android.view.ViewGroup;
-import android.widget.FrameLayout;
-import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
-import android.widget.TextView;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.resource.drawable.GlideDrawable;
 import com.bumptech.glide.load.resource.gif.GifDrawable;
 import com.bumptech.glide.request.target.Target;
 
-import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -128,7 +115,61 @@ public class EditorActivity extends AppCompatActivity implements Drawable.Callba
         mViewPager = (ViewPager) findViewById(R.id.pager);
 
         if (mViewPager != null) {
-            mEditorAdapter = new EditorPagerAdapter();
+            mEditorAdapter = new EditorPagerAdapter(this, new EditorPagerAdapter.OnInteractionListener() {
+                @Override
+                public void add() {
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
+                        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+                        intent.setType(EditorActivity.TYPE_IMAGE);
+                        Intent chooserIntent = Intent.createChooser(intent,
+                                EditorActivity.this.getResources().getString(R.string.choose_image));
+                        EditorActivity.this.startActivityForResult(chooserIntent, EditorActivity.RESULT_GALLERY);
+                    } else {
+                        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                        intent.addCategory(Intent.CATEGORY_OPENABLE);
+                        intent.setType(EditorActivity.TYPE_IMAGE);
+                        EditorActivity.this.startActivityForResult(intent, EditorActivity.RESULT_GALLERY_KITKAT);
+                    }
+                }
+
+                @Override
+                public void clear() {
+                    for (GlideDrawable drawable : EditorActivity.this.mDrawables) {
+                        drawable.stop();
+                    }
+                    if (EditorActivity.this.mSurface != null) {
+                        EditorActivity.this.mSurface.setVisibility(View.INVISIBLE);
+                    }
+
+                    for (Drawable drawable : EditorActivity.this.mDrawables) {
+                        if (drawable instanceof GifDrawable) {
+                            ((GifDrawable) drawable).recycle();
+                        }
+                    }
+
+                    EditorActivity.this.mDrawables.clear();
+                    EditorActivity.this.mImageUris.clear();
+
+                    if (EditorActivity.this.mEmpty != null) {
+                        EditorActivity.this.mEmpty.setVisibility(View.VISIBLE);
+                    }
+                }
+
+                @Override
+                public void ratio(float ratio) {
+                    if (EditorActivity.this.mSurface != null) {
+                        EditorActivity.this.mSurface.setAspectRatio(ratio);
+                    }
+                }
+
+                @Override
+                public Uri[] getUris() {
+                    final Uri[] uris = new Uri[EditorActivity.this.mImageUris.size()];
+                    EditorActivity.this.mImageUris.toArray(uris);
+
+                    return uris;
+                }
+            });
             mViewPager.setOffscreenPageLimit(2);
             mViewPager.setAdapter(mEditorAdapter);
         }
@@ -310,7 +351,8 @@ public class EditorActivity extends AppCompatActivity implements Drawable.Callba
     }
 
     private static void draw(@NonNull final Canvas canvas, @NonNull final Layer layer,
-                             @NonNull List<GlideDrawable> drawables, @NonNull final Paint paint) {
+                             @NonNull final List<GlideDrawable> drawables,
+                             @NonNull final Paint paint) {
         for (int i = 0; i < drawables.size(); i++) {
             final GlideDrawable drawable = drawables.get(i);
 
@@ -399,179 +441,6 @@ public class EditorActivity extends AppCompatActivity implements Drawable.Callba
                     render();
                 }
             }
-        }
-    }
-
-    private class EditorPagerAdapter extends PagerAdapter {
-
-        private LinearLayout mLayers;
-        private LinearLayout mBlends;
-
-        @Override
-        public Object instantiateItem(ViewGroup container, final int position) {
-            final View view;
-
-            switch (position) {
-                case 0:
-                    view = getLayoutInflater().inflate(R.layout.page_layers, container, false);
-                    mLayers = (LinearLayout) view.findViewById(R.id.list_layers);
-
-                    final ImageView add = (ImageView) view.findViewById(R.id.add);
-                    add.setOnClickListener(new View.OnClickListener() {
-                        @Override
-                        public void onClick(View v) {
-                            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
-                                Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-                                intent.setType(TYPE_IMAGE);
-                                Intent chooserIntent = Intent.createChooser(intent,
-                                        getResources().getString(R.string.choose_image));
-                                startActivityForResult(chooserIntent, RESULT_GALLERY);
-                            } else {
-                                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-                                intent.addCategory(Intent.CATEGORY_OPENABLE);
-                                intent.setType(TYPE_IMAGE);
-                                startActivityForResult(intent, RESULT_GALLERY_KITKAT);
-                            }
-                        }
-                    });
-
-                    final ImageView clear = (ImageView) view.findViewById(R.id.clear);
-                    clear.setOnClickListener(new View.OnClickListener() {
-                        @Override
-                        public void onClick(View v) {
-                            for (GlideDrawable drawable : mDrawables) {
-                                drawable.stop();
-                            }
-                            if (mSurface != null) {
-                                mSurface.setVisibility(View.INVISIBLE);
-                            }
-
-                            for (Drawable drawable : mDrawables) {
-                                if (drawable instanceof GifDrawable) {
-                                    ((GifDrawable) drawable).recycle();
-                                }
-                            }
-
-                            mDrawables.clear();
-                            mImageUris.clear();
-                            mLayers.removeAllViews();
-                            updateBlends();
-
-                            if (mEmpty != null) {
-                                mEmpty.setVisibility(View.VISIBLE);
-                            }
-                        }
-                    });
-
-                    break;
-
-                case 1: {
-                    final HorizontalScrollView scrollView =
-                            new HorizontalScrollView(EditorActivity.this);
-                    scrollView.setLayoutParams(new ViewGroup.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.MATCH_PARENT));
-                    view = scrollView;
-
-                    mBlends = new LinearLayout(EditorActivity.this);
-                    mBlends.setLayoutParams(new FrameLayout.LayoutParams(
-                            FrameLayout.LayoutParams.MATCH_PARENT,
-                            FrameLayout.LayoutParams.MATCH_PARENT));
-
-                    scrollView.addView(mBlends);
-
-                    updateBlends();
-
-                    break;
-                }
-                case 2:
-                    final HorizontalScrollView scrollView =
-                            new HorizontalScrollView(EditorActivity.this);
-                    scrollView.setLayoutParams(new ViewGroup.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.MATCH_PARENT));
-                    view = scrollView;
-
-                    final LinearLayout linearLayout = new LinearLayout(EditorActivity.this);
-                    linearLayout.setLayoutParams(new FrameLayout.LayoutParams(
-                            FrameLayout.LayoutParams.MATCH_PARENT,
-                            FrameLayout.LayoutParams.MATCH_PARENT));
-
-                    scrollView.addView(linearLayout);
-
-                    final int size = getResources().getDimensionPixelSize(R.dimen.item_ratio_width);
-
-                    for (final Ratio ratio : Ratio.values()) {
-                        final TextView textView = new TextView(EditorActivity.this);
-                        textView.setLayoutParams(new LinearLayout.LayoutParams(size,
-                                LinearLayout.LayoutParams.MATCH_PARENT));
-                        textView.setGravity(Gravity.CENTER);
-                        textView.setTextSize(20);
-                        textView.setText(ratio.toString());
-                        textView.setBackground(getResources().getDrawable(R.drawable.editor_button));
-
-                        textView.setOnClickListener(new View.OnClickListener() {
-                            @Override
-                            public void onClick(View v) {
-                                if (mSurface != null) {
-                                    mSurface.setAspectRatio(ratio.getRatio());
-                                }
-                            }
-                        });
-
-                        linearLayout.addView(textView);
-                    }
-
-                    break;
-                default:
-                    view = null;
-                    break;
-            }
-
-            if (view != null) {
-                container.addView(view, position);
-            }
-            return view;
-        }
-
-        @Override
-        public void destroyItem(ViewGroup container, int position, Object object) {
-            // no-op
-        }
-
-        @Override
-        public int getCount() {
-            return 3;
-        }
-
-        @Override
-        public boolean isViewFromObject(View view, Object object) {
-            return view == object;
-        }
-
-        public void add(final Uri uri) {
-            if (mLayers != null) {
-                final ImageView imageView = new ImageView(EditorActivity.this);
-                final int size = getResources().getDimensionPixelSize(R.dimen.pager_height);
-                imageView.setLayoutParams(new LinearLayout.LayoutParams(size, size));
-                imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
-                mLayers.addView(imageView);
-
-                Glide.with(EditorActivity.this).load(uri).asBitmap().into(imageView);
-
-                updateBlends();
-            }
-        }
-
-        public void updateBlends() {
-
-            final int size = getResources().getDimensionPixelSize(R.dimen.pager_height);
-
-            final Uri[] uris = new Uri[mImageUris.size()];
-            mImageUris.toArray(uris);
-
-            new BlendTask(EditorActivity.this, size, mBlends, EditorActivity.this)
-                    .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, uris);
         }
     }
 }

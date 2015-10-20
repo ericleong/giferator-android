@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 /**
+ * Updates {@link ViewGroup} with list of blend modes.
+ * <p/>
  * Created by Eric on 9/28/2015.
  */
 public class BlendTask extends AsyncTask<Uri, Void, List<Bitmap>> {
