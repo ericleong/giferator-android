@@ -33,7 +33,7 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 public class EditorActivity extends AppCompatActivity implements Drawable.Callback,
-        SurfaceHolder.Callback, BlendListener {
+        SurfaceHolder.Callback2, BlendListener {
 
     private static final String TAG = EditorActivity.class.getSimpleName();
 
@@ -347,6 +347,11 @@ public class EditorActivity extends AppCompatActivity implements Drawable.Callba
         for (GlideDrawable drawable : mDrawables) {
             drawable.stop();
         }
+    }
+
+    @Override
+    public void surfaceRedrawNeeded(SurfaceHolder holder) {
+        render();
     }
 
     private class ImageTask extends AsyncTask<Uri, Void, Pair<Uri, GlideDrawable>> {
