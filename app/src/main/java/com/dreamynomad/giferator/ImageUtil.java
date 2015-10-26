@@ -1,23 +1,20 @@
 package com.dreamynomad.giferator;
 
-import android.content.Context;
-import android.graphics.Bitmap;
 import android.graphics.Canvas;
-import android.graphics.Rect;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
-import android.os.Environment;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.Log;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.util.List;
 
 /**
- * Basic utilities.
+ * Basic image rendering utilities.
  * <p/>
  * Created by Eric on 9/23/2015.
  */
@@ -25,18 +22,26 @@ public class ImageUtil {
 
     private static final String TAG = ImageUtil.class.getSimpleName();
 
+    /**
+     * Sets the bounds on the drawable to "cover" the width and height.
+     *
+     * @param drawable the drawable to render.
+     * @param width    the target width.
+     * @param height   the target height.
+     * @see <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Background_and_Borders/Scaling_background_images#cover">Mozilla Documentation</a>
+     */
     public static void cover(@NonNull final Drawable drawable, final int width, final int height) {
         if (width > 0 && height > 0 && drawable.getIntrinsicWidth() > 0 &&
                 drawable.getIntrinsicHeight() > 0) {
-            final double surfaceRatio = (double) width / height;
+            final double targetRatio = (double) width / height;
             final double drawableRatio = (double) drawable.getIntrinsicWidth()
                     / drawable.getIntrinsicHeight();
 
-            if (drawableRatio > surfaceRatio) { // wider
+            if (drawableRatio > targetRatio) { // wider
                 final int fullWidth = (int) Math.ceil(height * drawableRatio);
                 drawable.setBounds((width - fullWidth) / 2, 0,
                         (fullWidth - width) / 2 + width, height);
-            } else if (drawableRatio < surfaceRatio) { // taller
+            } else if (drawableRatio < targetRatio) { // taller
                 final int fullHeight = (int) Math.ceil(width / drawableRatio);
                 drawable.setBounds(0, (height - fullHeight) / 2,
                         width, (fullHeight - height) / 2 + height);
@@ -46,70 +51,71 @@ public class ImageUtil {
         }
     }
 
-    public static void cover(@NonNull final Bitmap bitmap, @NonNull final Canvas canvas,
-                             @NonNull final Rect rect) {
-        if (canvas.getWidth() > 0 && canvas.getHeight() > 0 && bitmap.getWidth() > 0 &&
-                bitmap.getHeight() > 0) {
-            final double surfaceRatio = (double) canvas.getWidth() / canvas.getHeight();
-            final double drawableRatio = (double) bitmap.getWidth() / bitmap.getHeight();
+    /**
+     * Renders a list of drawable to a {@link SurfaceView} using the provided {@link Paint}.
+     * {@link Layer} is an optimization to reuse offscreen buffers.
+     *
+     * @param surfaceView the surface to draw on.
+     * @param layer       the layer object to reuse.
+     * @param drawables   the list of drawables to draw.
+     * @param paint       the paint to draw with for the drawables after the first one.
+     */
+    public static void render(@Nullable final SurfaceView surfaceView, @Nullable final Layer layer,
+                              @NonNull final List<? extends Drawable> drawables,
+                              @NonNull final Paint paint) {
+        if (surfaceView != null && surfaceView.getHolder() != null) {
+            Canvas canvas = null;
+            final SurfaceHolder holder = surfaceView.getHolder();
 
-            if (drawableRatio > surfaceRatio) { // wider
-                final int fullWidth = (int) Math.ceil(canvas.getHeight() * drawableRatio);
-                rect.set((canvas.getWidth() - fullWidth) / 2, 0,
-                        (fullWidth - canvas.getWidth()) / 2 + canvas.getWidth(),
-                        canvas.getHeight());
-            } else if (drawableRatio < surfaceRatio) { // taller
-                final int fullHeight = (int) Math.ceil(canvas.getWidth() / drawableRatio);
-                rect.set(0, (canvas.getWidth() - fullHeight) / 2,
-                        canvas.getWidth(),
-                        (fullHeight - canvas.getHeight()) / 2 + canvas.getHeight());
-            } else { // same ratio
-                rect.set(0, 0, canvas.getWidth(), canvas.getHeight());
-            }
-        }
-    }
-
-    @Nullable
-    public static File writeBitmap(final Context context, final Bitmap bitmap) {
-        final File file = getOutputMediaFile(
-                context.getResources().getString(R.string.app_name), ".jpg");
-
-        if (file != null) {
             try {
-                FileOutputStream fileOutputStream = new FileOutputStream(file);
+                synchronized (holder) {
+                    canvas = holder.lockCanvas();
 
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 80, fileOutputStream);
-
-                fileOutputStream.flush();
-                fileOutputStream.close();
-
-                return file;
-            } catch (IOException e) {
-                Log.e(TAG, "Error creating file", e);
+                    if (canvas != null) {
+                        draw(canvas, layer, drawables, paint);
+                    } else {
+                        Log.e(TAG, "Could not lock canvas!");
+                    }
+                }
+            } finally {
+                if (canvas != null && holder != null) {
+                    holder.unlockCanvasAndPost(canvas);
+                }
             }
+        } else {
+            Log.e(TAG, "No surface or surface holder!");
         }
-
-        return null;
     }
 
-    @Nullable
-    public static File getOutputMediaFile(String subdir, String extension) {
+    /**
+     * @param canvas
+     *      the canvas to draw to.
+     * @param layer
+     *      the layer to reuse.
+     * @param drawables
+     *      the drawables to draw.
+     * @param paint
+     *      the paint to use.
+     */
+    private static void draw(@NonNull final Canvas canvas, @Nullable final Layer layer,
+                             @NonNull final List<? extends Drawable> drawables,
+                             @NonNull final Paint paint) {
+        for (int i = 0; i < drawables.size(); i++) {
+            final Drawable drawable = drawables.get(i);
 
-        // TODO: you should check that the SDCard is mounted using
-        // Environment.getExternalStorageState() before doing this.
-        final File mediaStorageDir = new File(Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_PICTURES), subdir);
+            cover(drawable, canvas.getWidth(), canvas.getHeight());
 
-        // Create the storage directory if it does not exist
-        if (!mediaStorageDir.exists() && !mediaStorageDir.mkdirs()) {
-            Log.d(TAG, "failed to create directory");
-            return null;
+            if (i == 0) {
+                drawable.draw(canvas);
+            } else if (layer != null) {
+                // Clear the layer canvas.
+                layer.mCanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
+                // Render drawable to layer canvas.
+                drawable.draw(layer.mCanvas);
+                // Render layer canvas to the primary canvas.
+                paint.setShader(layer.mShader);
+                canvas.drawRect(0, 0, layer.mCanvas.getWidth(), layer.mCanvas.getHeight(), paint);
+            }
         }
-
-        final String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        final File mediaFile = new File(mediaStorageDir.getPath() + File.separator +
-                "IMG_" + timeStamp + extension);
-
-        return mediaFile;
     }
 }

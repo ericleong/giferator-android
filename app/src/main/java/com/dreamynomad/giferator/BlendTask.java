@@ -88,7 +88,7 @@ public class BlendTask extends AsyncTask<Uri, Void, List<Bitmap>> {
                 final Xfermode test = new PorterDuffXfermode(mode);
 
                 for (int i = 0; i < bitmaps.size(); i++) {
-                    ImageUtil.cover(bitmaps.get(i), canvas, rect);
+                    SaveUtil.cover(bitmaps.get(i), canvas, rect);
                     if (i == 0) {
                         paint.setXfermode(base);
                     } else {

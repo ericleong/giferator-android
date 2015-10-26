@@ -1,8 +1,6 @@
 package com.dreamynomad.giferator;
 
 import android.content.Intent;
-import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
@@ -316,57 +314,9 @@ public class EditorActivity extends AppCompatActivity implements Drawable.Callba
         mHandler.post(new Runnable() {
             @Override
             public void run() {
-                renderInternal();
+                ImageUtil.render(mSurface, mLayer, mDrawables, mPaint);
             }
         });
-    }
-
-    private void renderInternal() {
-        if (mSurface != null && mSurface.getHolder() != null) {
-            Canvas canvas = null;
-            final SurfaceHolder holder = mSurface.getHolder();
-
-            try {
-                synchronized (holder) {
-                    canvas = holder.lockCanvas();
-
-                    if (canvas != null) {
-                        if (mLayer == null && mDrawables.size() > 1) {
-                            mLayer = new Layer(canvas.getWidth(), canvas.getHeight());
-                        }
-
-                        draw(canvas, mLayer, mDrawables, mPaint);
-                    } else {
-                        Log.e(TAG, "Could not lock canvas!");
-                    }
-                }
-            } finally {
-                if (canvas != null && holder != null) {
-                    holder.unlockCanvasAndPost(canvas);
-                }
-            }
-        } else {
-            Log.e(TAG, "No surface or surface holder!");
-        }
-    }
-
-    private static void draw(@NonNull final Canvas canvas, @NonNull final Layer layer,
-                             @NonNull final List<GlideDrawable> drawables,
-                             @NonNull final Paint paint) {
-        for (int i = 0; i < drawables.size(); i++) {
-            final GlideDrawable drawable = drawables.get(i);
-
-            ImageUtil.cover(drawable, canvas.getWidth(), canvas.getHeight());
-
-            if (i == 0) {
-                drawable.draw(canvas);
-            } else {
-                layer.mCanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
-                drawable.draw(layer.mCanvas);
-                paint.setShader(layer.mShader);
-                canvas.drawRect(0, 0, layer.mCanvas.getWidth(), layer.mCanvas.getHeight(), paint);
-            }
-        }
     }
 
     @Override

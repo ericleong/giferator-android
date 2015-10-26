@@ -115,11 +115,11 @@ public class SaveTask extends AsyncTask<Uri, Float, File> implements DialogInter
 
                 publishProgress(0.5f);
 
-                file = ImageUtil.writeBitmap(mContext, bitmap);
+                file = SaveUtil.writeBitmap(mContext, bitmap);
 
                 publishProgress(1.0f);
             } else {
-                file = ImageUtil.getOutputMediaFile(
+                file = SaveUtil.getOutputMediaFile(
                         mContext.getResources().getString(R.string.app_name), ".jpg");
 
                 if (file != null) {
@@ -222,7 +222,7 @@ public class SaveTask extends AsyncTask<Uri, Float, File> implements DialogInter
                 final Bitmap gifBitmap = gifDrawable.getDecoder().getNextFrame();
 
                 if (gifBitmap != null) {
-                    ImageUtil.cover(gifBitmap, canvas, mRect);
+                    SaveUtil.cover(gifBitmap, canvas, mRect);
                     mPaint.setShader(null);
                     canvas.drawBitmap(gifBitmap, null, mRect, mPaint);
 
